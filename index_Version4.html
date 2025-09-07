@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mansplain Helper</title>
+  <meta name="description" content="Text-only phrases by Mode & Topic — mobile-first, dense layout." />
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b1220">
+  <style>
+    /* Dark theme, compact/ dense layout; modes are selectable on Topics screen */
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1724;
+      --card:#131926;
+      --muted:#9aa3af;
+      --text:#e7eef8;
+      --accent:#ff3b30;
+      --radius:16px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      font-size:16px;
+    }
+    html.compact{ font-size:14px; }
+    body{ margin:0; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+    header.app-header{ padding:12px 14px; display:flex; align-items:center; gap:8px; background:transparent; position:sticky; top:0; z-index:20; }
+    .title{ font-weight:700; color:var(--muted); }
+    main{ padding:12px; padding-bottom:96px; min-height:calc(100vh - 112px); }
+
+    section.screen{ display:none; }
+    section.screen.active{ display:block; }
+
+    .panel{ background:var(--panel); border-radius:18px; padding:14px; box-shadow:0 8px 30px rgba(0,0,0,0.6); max-width:960px; margin:0 auto; }
+
+    /* Topics / Modes */
+    .topics-header{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+    .screen-title{ font-size:1.1rem; font-weight:800; color:#fff; }
+    .back-btn{ color:var(--muted); font-size:1.2rem; padding:6px; border-radius:8px; background:transparent; border:0; cursor:pointer; }
+    .featured-list{ display:flex; gap:10px; flex-direction:column; margin-bottom:12px; }
+    .featured-item{ background:var(--card); padding:14px; border-radius:12px; color:#fff; font-weight:800; cursor:pointer; }
+    .all-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap:10px; }
+    .topic-tile{ background:var(--card); padding:12px; border-radius:12px; text-align:center; color:#fff; font-weight:700; cursor:pointer; }
+
+    /* Filters / chips */
+    .chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 12px 0; }
+    .chip{ padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,0.04); background:transparent; color:var(--muted); cursor:pointer; font-weight:700; }
+    .chip.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+
+    /* Phrase cards */
+    .cards{ display:flex; flex-direction:column; gap:10px; }
+    .card{ background:var(--card); border-radius:14px; padding:12px; border:1px solid rgba(255,255,255,0.02); }
+    .en{ font-weight:800; color:#fff; line-height:1.2; }
+    .src{ color:var(--muted); margin-top:8px; font-size:0.9rem; }
+    .he{ margin-top:8px; font-family:"Noto Sans Hebrew","Rubik",system-ui,Arial; font-size:1rem; direction:rtl; text-align:right; unicode-bidi:isolate; color:#fff; }
+    .meta{ display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
+    .tag{ font-size:0.76rem; padding:5px 8px; border-radius:8px; background:rgba(255,255,255,0.03); color:var(--muted); }
+    .save-btn{ margin-left:auto; border:0; background:var(--accent); color:#fff; padding:6px 10px; border-radius:10px; cursor:pointer; font-weight:800; }
+
+    /* Bottom nav */
+    nav.bottom-nav{ position:fixed; bottom:12px; left:12px; right:12px; display:flex; gap:12px; padding:10px; background:rgba(11,18,32,0.6); border-radius:18px; justify-content:space-between; align-items:center; z-index:80; border:1px solid rgba(255,255,255,0.02); }
+    .nav-btn{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; padding:6px; border:0; background:transparent; color:var(--muted); font-weight:700; cursor:pointer; border-radius:10px; }
+    .nav-dot{ width:36px; height:36px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-weight:800; }
+    .nav-btn.active{ color:#fff; }
+    .nav-btn.active .nav-dot{ background:var(--accent); color:#fff; box-shadow:0 6px 22px rgba(255,59,48,0.16); transform:translateY(-6px); }
+
+    .small{ font-size:0.88rem; color:var(--muted); }
+    button:focus, .topic-tile:focus, .chip:focus { outline:3px solid rgba(255,255,255,0.04); outline-offset:4px; }
+
+    @media(min-width:900px){
+      main{ padding:28px; }
+      .panel{ padding:20px; }
+      .all-grid{ grid-template-columns: repeat(3,1fr); }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header" role="banner">
+    <div class="title" id="header-title">Mansplain Helper</div>
+  </header>
+
+  <main>
+    <!-- Topics screen (app opens here) -->
+    <section id="screen-topics" class="screen active" aria-labelledby="topics-title">
+      <div class="panel" role="region" aria-label="Topics panel">
+        <div class="topics-header">
+          <div class="screen-title">Topics</div>
+        </div>
+
+        <div class="section small" style="margin-bottom:8px;">Select a Mode (featured) — selection persists locally</div>
+        <div class="featured-list" id="featured-list"></div>
+
+        <div class="section-title" style="color:var(--muted); font-weight:800; margin-top:8px;">All Topics</div>
+        <div class="all-grid" id="topics-grid" role="list"></div>
+      </div>
+    </section>
+
+    <!-- Phrases -->
+    <section id="screen-phrases" class="screen" aria-labelledby="phrases-title">
+      <div class="panel" role="region" aria-label="Phrases panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button class="back-btn" id="back-to-topics">←</button>
+            <div class="screen-title" id="mode-topic-header">Mode • Topic</div>
+          </div>
+          <div class="small" id="phrase-count">0 phrases</div>
+        </div>
+
+        <div class="chip-row" id="filter-row" role="toolbar" aria-label="Filters"></div>
+
+        <div class="cards" id="phrases-container" role="list"></div>
+        <div id="more-holder" style="margin-top:8px;"></div>
+      </div>
+    </section>
+
+    <!-- Saved -->
+    <section id="screen-saved" class="screen" aria-labelledby="saved-title">
+      <div class="panel" role="region" aria-label="Saved panel">
+        <div class="topics-header"><div class="screen-title">Saved</div></div>
+        <div class="small" style="margin-bottom:8px">Saved to local device (mh_saved)</div>
+        <div class="saved-list" id="saved-container"></div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="screen-settings" class="screen" aria-labelledby="settings-title">
+      <div class="panel" role="region" aria-label="Settings panel">
+        <div class="topics-header"><div class="screen-title">Settings</div></div>
+        <div style="margin-top:8px;" class="small">Compact font</div>
+        <label style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+          <input type="checkbox" id="compact-toggle" />
+          <span class="small">Enable compact font</span>
+        </label>
+
+        <div style="margin-top:12px;" class="small">Import JSON (overwrite dataset):</div>
+        <textarea id="import-json-area" class="small" style="width:100%;min-height:120px;margin-top:8px;padding:10px;border-radius:8px;background:#07101a;border:1px solid rgba(255,255,255,0.03);color:var(--muted);"></textarea>
+        <div style="margin-top:8px;"><button class="small" id="import-json-btn" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:10px;border:0;cursor:pointer;">Import JSON</button></div>
+
+        <div style="margin-top:12px;" class="small">Import CSV (header: PhraseID,Mode,TopicID,EnglishText,Source,HebrewText,Filters)</div>
+        <textarea id="import-csv-area" class="small" style="width:100%;min-height:120px;margin-top:8px;padding:10px;border-radius:8px;background:#07101a;border:1px solid rgba(255,255,255,0.03);color:var(--muted);"></textarea>
+        <div style="margin-top:8px;"><button class="small" id="import-csv-btn" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:10px;border:0;cursor:pointer;">Import CSV</button></div>
+
+        <div style="margin-top:12px;" class="small">Local storage</div>
+        <div style="margin-top:8px;">
+          <button id="reset-local" class="small" style="background:transparent;border:1px solid rgba(255,255,255,0.04); color:var(--muted);padding:8px 12px;border-radius:10px;cursor:pointer;">Reset local data</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="toast" style="position:fixed; left:50%; transform:translateX(-50%); bottom:110px; background:#111; color:#fff; padding:8px 12px; border-radius:8px; display:none; z-index:160;"></div>
+  </main>
+
+  <nav class="bottom-nav" role="navigation" aria-label="Main navigation" id="bottom-nav">
+    <button class="nav-btn" data-screen="screen-topics" id="nav-topics"><div class="nav-dot">≡</div><div style="font-size:0.76rem">Topics</div></button>
+    <button class="nav-btn" data-screen="screen-phrases" id="nav-phrases"><div class="nav-dot">#</div><div style="font-size:0.76rem">Phrases</div></button>
+    <button class="nav-btn" data-screen="screen-saved" id="nav-saved"><div class="nav-dot">★</div><div style="font-size:0.76rem">Saved</div></button>
+    <button class="nav-btn" data-screen="screen-settings" id="nav-settings"><div class="nav-dot">⚙</div><div style="font-size:0.76rem">Settings</div></button>
+  </nav>
+
+  <script>
+    // Updated filters per request
+    const MODES = ["Torah Jew","Zen Meditator","Southern Charmer"];
+    const FILTERS = ["Philosophical","Comforting","Confrontational","Humorous","Absurd","Motivational","Practical Advice","Poetic/Expressive"];
+    const TOPICS = [
+      { id:"marriage", name:"Marriage" },
+      { id:"death", name:"Death" },
+      { id:"suffering", name:"Suffering" },
+      { id:"good-human", name:"How to be a good human" },
+      { id:"cleave-to", name:"What to cleave to" },
+      { id:"stay-away", name:"What to stay away from" },
+
+      { id:"work-motivation", name:"Motivation & Productivity" },
+      { id:"work-coworkers", name:"Dealing with Coworkers" },
+      { id:"work-leadership", name:"Leadership & Growth" },
+      { id:"work-balance", name:"Work‑Life Balance" },
+
+      { id:"rel-friendship", name:"Friendship" },
+      { id:"rel-parenting", name:"Parenting" },
+      { id:"rel-conflict", name:"Conflict Resolution" },
+      { id:"rel-selflove", name:"Self‑Love" },
+
+      { id:"pg-gratitude", name:"Gratitude" },
+      { id:"pg-mindfulness", name:"Mindfulness" },
+      { id:"pg-resilience", name:"Resilience" },
+      { id:"pg-boundaries", name:"Setting Boundaries" },
+
+      { id:"wb-stress", name:"Stress Management" },
+      { id:"wb-joy", name:"Happiness & Joy" },
+      { id:"wb-change", name:"Coping with Change" },
+      { id:"wb-purpose", name:"Purpose & Meaning" }
+    ];
+
+    // LocalStorage keys (unchanged)
+    const LS_MODE = "mh_mode";
+    const LS_SAVED = "mh_saved";
+    const LS_COMPACT = "mh_compact";
+    const LS_DATA_JSON = "mh_data_json";
+    const LS_DATA_CSV = "mh_data_csv";
+    const RENDER_LIMIT = 60;
+
+    let STATE = {
+      mode: localStorage.getItem(LS_MODE) || MODES[0],
+      topic: null,
+      filters: new Set(),
+      saved: JSON.parse(localStorage.getItem(LS_SAVED) || "[]"),
+      compact: localStorage.getItem(LS_COMPACT) === "1",
+      data: null,
+      raw_csv: localStorage.getItem(LS_DATA_CSV) || null
+    };
+
+    // DOM refs
+    const featuredList = document.getElementById("featured-list");
+    const topicsGrid = document.getElementById("topics-grid");
+    const filterRow = document.getElementById("filter-row");
+    const phrasesContainer = document.getElementById("phrases-container");
+    const phraseCount = document.getElementById("phrase-count");
+    const modeTopicHeader = document.getElementById("mode-topic-header");
+    const savedContainer = document.getElementById("saved-container");
+    const compactToggle = document.getElementById("compact-toggle");
+    const importJsonArea = document.getElementById("import-json-area");
+    const importJsonBtn = document.getElementById("import-json-btn");
+    const importCsvArea = document.getElementById("import-csv-area");
+    const importCsvBtn = document.getElementById("import-csv-btn");
+    const resetLocalBtn = document.getElementById("reset-local");
+    const toast = document.getElementById("toast");
+    const moreHolder = document.getElementById("more-holder");
+
+    function showToast(msg, ms=1800){ toast.textContent = msg; toast.style.display="block"; setTimeout(()=>toast.style.display="none", ms); }
+
+    // CSV parser (robust)
+    function parseCSV(text){
+      const rows = [];
+      let cur = [];
+      let i=0, s="";
+      let inQuotes=false;
+      while(i < text.length){
+        const ch = text[i];
+        if(inQuotes){
+          if(ch === '"'){
+            if(text[i+1] === '"'){ s += '"'; i+=2; continue; }
+            else { inQuotes=false; i++; continue; }
+          } else { s+=ch; i++; continue; }
+        } else {
+          if(ch === '"'){ inQuotes=true; i++; continue; }
+          if(ch === ','){ cur.push(s); s=""; i++; continue; }
+          if(ch === '\r'){ i++; continue; }
+          if(ch === '\n'){ cur.push(s); rows.push(cur); cur=[]; s=""; i++; continue; }
+          s += ch; i++;
+        }
+      }
+      if(inQuotes){ cur.push(s); rows.push(cur); } else { if(s!=="" || cur.length>0){ cur.push(s); rows.push(cur); } }
+      return rows;
+    }
+    function splitFiltersCell(cell){ if(!cell) return []; return cell.split(/[,;]+/).map(t=>t.trim()).filter(Boolean); }
+    function validatePhraseObj(p){ if(!p.id||!p.mode||!p.topic||!p.en) return false; if(!MODES.includes(p.mode)) return false; if(!Array.isArray(p.tags)) p.tags = p.tags || []; return true; }
+    function importCSVText(csvText){
+      const rows = parseCSV(csvText);
+      if(rows.length < 2) throw new Error("CSV must include header + at least one row.");
+      const header = rows[0].map(h=>h.trim());
+      const expected = ["PhraseID","Mode","TopicID","EnglishText","Source","HebrewText","Filters"];
+      const headerNorm = header.map(h=>h.replace(/\s+/g,"").toLowerCase());
+      const expectedNorm = expected.map(h=>h.replace(/\s+/g,"").toLowerCase());
+      for(let i=0;i<4;i++){
+        if(!headerNorm[i] || headerNorm[i] !== expectedNorm[i]) throw new Error("CSV header mismatch. First columns must be: " + expected.slice(0,4).join(", "));
+      }
+      const out=[];
+      for(let r=1;r<rows.length;r++){
+        const row=rows[r];
+        if(row.length===1 && row[0].trim()==="") continue;
+        const id = row[0]?.trim();
+        const mode = row[1]?.trim();
+        const topic = row[2]?.trim();
+        const en = row[3]?.replace(/\r/g,"").trim();
+        const src = (row[4]||"").trim();
+        const he = (row[5]||"").trim();
+        const filters = splitFiltersCell(row[6]||"");
+        const p={id,mode,topic,en,src,he,tags:filters};
+        if(validatePhraseObj(p)) out.push(p);
+      }
+      return out;
+    }
+
+    // UI helpers
+    function showScreen(id){ document.querySelectorAll("section.screen").forEach(s=>s.classList.remove("active")); document.getElementById(id).classList.add("active"); document.querySelectorAll(".nav-btn").forEach(b=> b.classList.toggle("active", b.dataset.screen===id)); }
+    function renderFeaturedAndTopics(){
+      featuredList.innerHTML=""; topicsGrid.innerHTML="";
+      MODES.forEach(m=>{
+        const fi = document.createElement("button"); fi.className="featured-item"; fi.textContent = m;
+        fi.onclick = ()=>{ STATE.mode = m; localStorage.setItem(LS_MODE,m); showToast("Mode: "+m); };
+        featuredList.appendChild(fi);
+      });
+      TOPICS.forEach(t=>{
+        const el = document.createElement("button"); el.className="topic-tile"; el.textContent = t.name;
+        el.onclick = ()=>{ STATE.topic = t.id; openPhrasesForTopic(); };
+        topicsGrid.appendChild(el);
+      });
+    }
+
+    function renderFilters(){
+      filterRow.innerHTML="";
+      FILTERS.forEach(f=>{
+        const c = document.createElement("button"); c.className="chip"; c.textContent=f;
+        c.onclick = ()=>{ if(STATE.filters.has(f)) STATE.filters.delete(f); else STATE.filters.add(f); renderFilters(); renderPhraseList(); };
+        if(STATE.filters.has(f)) c.classList.add("active");
+        filterRow.appendChild(c);
+      });
+    }
+    function applyFilters(items){ if(STATE.filters.size===0) return items; return items.filter(p=> Array.isArray(p.tags) && p.tags.some(t=> STATE.filters.has(t) )); }
+
+    function renderPhraseList(){
+      phrasesContainer.innerHTML=""; moreHolder.innerHTML="";
+      if(!STATE.data) return;
+      const list = STATE.data.filter(p=> p.mode===STATE.mode && p.topic===STATE.topic);
+      const filtered = applyFilters(list);
+      phraseCount.textContent = filtered.length + " phrase" + (filtered.length!==1 ? "s":"");
+      const show = filtered.slice(0, RENDER_LIMIT);
+      for(const p of show) phrasesContainer.appendChild(createPhraseCard(p));
+      if(filtered.length > RENDER_LIMIT){
+        const btn = document.createElement("button"); btn.className="small"; btn.style="background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.02);padding:8px;border-radius:10px;"; btn.textContent="Results limited to " + RENDER_LIMIT;
+        moreHolder.appendChild(btn);
+      }
+    }
+    function createPhraseCard(p){
+      const card=document.createElement("article"); card.className="card"; card.setAttribute("role","listitem");
+      const en=document.createElement("div"); en.className="en"; en.innerHTML = escapeHtml(p.en).replace(/\n/g,"<br>");
+      card.appendChild(en);
+      if(p.src){ const src=document.createElement("div"); src.className="src"; src.textContent=p.src; card.appendChild(src); }
+      if(p.he && p.he.trim()){ const he=document.createElement("div"); he.className="he"; he.dir="rtl"; he.lang="he"; he.textContent=p.he; card.appendChild(he); }
+      const meta=document.createElement("div"); meta.className="meta";
+      if(Array.isArray(p.tags)) p.tags.forEach(t=>{ const tag=document.createElement("div"); tag.className="tag"; tag.textContent=t; meta.appendChild(tag); });
+      const saveBtn=document.createElement("button"); saveBtn.className="save-btn"; updateSaveBtnText(saveBtn,p.id);
+      saveBtn.onclick = ()=>{ toggleSave(p.id); updateSaveBtnText(saveBtn,p.id); renderSaved(); };
+      meta.appendChild(saveBtn);
+      card.appendChild(meta);
+      return card;
+    }
+    function updateSaveBtnText(btn,id){ const saved = STATE.saved.includes(id); btn.textContent = saved ? "Saved":"Save"; btn.setAttribute("aria-pressed", String(saved)); }
+    function toggleSave(id){ const idx = STATE.saved.indexOf(id); if(idx===-1) STATE.saved.push(id); else STATE.saved.splice(idx,1); localStorage.setItem(LS_SAVED, JSON.stringify(STATE.saved)); showToast("Saved items: "+STATE.saved.length); }
+    function renderSaved(){ savedContainer.innerHTML=""; if(!STATE.data) return; const items = STATE.saved.map(id=> STATE.data.find(p=>p.id===id)).filter(Boolean); if(items.length===0){ savedContainer.innerHTML="<div class='small'>No saved phrases yet.</div>"; return; } items.forEach(p=>{ const c=document.createElement("div"); c.className="card"; const en=document.createElement("div"); en.className="en"; en.innerHTML = escapeHtml(p.en).replace(/\n/g,"<br>"); c.appendChild(en); if(p.src){ const s=document.createElement("div"); s.className="src"; s.textContent=p.src; c.appendChild(s); } if(p.he){ const h=document.createElement("div"); h.className="he"; h.dir="rtl"; h.lang="he"; h.textContent=p.he; c.appendChild(h); } const row=document.createElement("div"); row.className="meta"; const remove=document.createElement("button"); remove.className="save-btn"; remove.textContent="Remove"; remove.onclick=()=>{ const idx = STATE.saved.indexOf(p.id); if(idx!==-1){ STATE.saved.splice(idx,1); localStorage.setItem(LS_SAVED, JSON.stringify(STATE.saved)); renderSaved(); showToast("Removed"); } }; row.appendChild(remove); c.appendChild(row); savedContainer.appendChild(c); }); }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+    function openPhrasesForTopic(){ if(!STATE.mode){ showToast("Pick a mode first"); return; } if(!STATE.topic){ showToast("Pick a topic"); showScreen("screen-topics"); return; } updateModeTopicHeader(); renderFilters(); renderPhraseList(); showScreen("screen-phrases"); }
+    function updateModeTopicHeader(){ const t = TOPICS.find(x=>x.id===STATE.topic); modeTopicHeader.textContent = STATE.mode + " • " + (t ? t.name : STATE.topic); }
+
+    // Import handling
+    importJsonBtn.addEventListener("click", ()=>{
+      const txt = importJsonArea.value.trim(); if(!txt){ showToast("Paste JSON"); return; }
+      try{ const arr=JSON.parse(txt); if(!Array.isArray(arr)) throw new Error("JSON must be an array"); const cleaned = []; for(const p of arr) if(validatePhraseObj(p)) cleaned.push(p); STATE.data = cleaned; localStorage.setItem(LS_DATA_JSON, JSON.stringify(cleaned)); localStorage.removeItem(LS_DATA_CSV); STATE.raw_csv=null; STATE.saved=[]; localStorage.setItem(LS_SAVED, JSON.stringify(STATE.saved)); showToast("Imported JSON — "+cleaned.length); renderAfterDataLoad(); }catch(e){ alert("Import JSON failed: " + (e.message||e)); }
+    });
+    importCsvBtn.addEventListener("click", ()=>{
+      const txt = importCsvArea.value; if(!txt || !txt.trim()){ showToast("Paste CSV"); return; }
+      try{ const arr = importCSVText(txt); STATE.data = arr; localStorage.setItem(LS_DATA_CSV, txt); localStorage.removeItem(LS_DATA_JSON); STATE.raw_csv = txt; STATE.saved=[]; localStorage.setItem(LS_SAVED, JSON.stringify(STATE.saved)); showToast("Imported CSV — "+arr.length); renderAfterDataLoad(); }catch(e){ alert("CSV import failed: " + (e.message||e)); }
+    });
+
+    // Reset local
+    resetLocalBtn.addEventListener("click", ()=>{
+      if(!confirm("Reset local data and restore defaults? This clears imports and saved items.")) return;
+      localStorage.removeItem(LS_DATA_JSON); localStorage.removeItem(LS_DATA_CSV); localStorage.removeItem(LS_SAVED); localStorage.removeItem(LS_MODE); localStorage.removeItem(LS_COMPACT);
+      STATE = { mode: MODES[0], topic:null, filters:new Set(), saved:[], compact:false, data:null, raw_csv:null };
+      document.documentElement.classList.remove("compact"); compactToggle.checked=false; init();
+      showToast("Local reset");
+    });
+
+    // Compact toggle
+    compactToggle.addEventListener("change", ()=>{ STATE.compact = compactToggle.checked; localStorage.setItem(LS_COMPACT, STATE.compact ? "1":"0"); document.documentElement.classList.toggle("compact", STATE.compact); });
+
+    // Nav buttons
+    document.querySelectorAll(".nav-btn").forEach(b=>{ b.addEventListener("click", ()=>{ const target=b.dataset.screen; if(target==="screen-phrases" && !STATE.topic){ showToast("Pick a Topic first"); showScreen("screen-topics"); return; } if(target==="screen-saved") renderSaved(); if(target==="screen-phrases") renderPhraseList(); showScreen(target); }); });
+
+    document.getElementById("back-to-topics").addEventListener("click", ()=> showScreen("screen-topics"));
+
+    // Data loading (priority: local import -> embedded phrases.json)
+    async function loadData(){
+      const j = localStorage.getItem(LS_DATA_JSON);
+      if(j){ try{ STATE.data = JSON.parse(j); return; }catch(e){ console.warn("bad mh_data_json"); } }
+      const csv = localStorage.getItem(LS_DATA_CSV);
+      if(csv){ try{ STATE.data = importCSVText(csv); STATE.raw_csv = csv; return; }catch(e){ console.warn("bad mh_data_csv"); } }
+      try{
+        const r = await fetch("phrases.json", {cache:"no-cache"});
+        if(r.ok){ const arr = await r.json(); STATE.data = arr; return; }
+      } catch(e){ console.warn("phrases.json fetch failed", e); }
+      // minimal fallback (should not be used if phrases.json is present)
+      STATE.data = [];
+    }
+
+    function renderAfterDataLoad(){
+      renderFeaturedAndTopics();
+      renderFilters();
+      compactToggle.checked = STATE.compact;
+      document.documentElement.classList.toggle("compact", STATE.compact);
+      showScreen("screen-topics");
+      renderSaved();
+    }
+
+    async function init(){ STATE.saved = JSON.parse(localStorage.getItem(LS_SAVED) || "[]"); STATE.mode = localStorage.getItem(LS_MODE) || MODES[0]; STATE.compact = localStorage.getItem(LS_COMPACT) === "1"; document.documentElement.classList.toggle("compact", STATE.compact); renderFeaturedAndTopics(); renderFilters(); await loadData(); renderAfterDataLoad(); }
+
+    init();
+
+    // Register service worker (optional) - will be installed only if file present and site served over HTTPS or localhost
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sw.js').then(reg=> console.log('SW registered', reg)).catch(err=> console.warn('SW register failed', err));
+    }
+
+    window.MH = { STATE, MODES, FILTERS, TOPICS, parseCSV };
+  </script>
+</body>
+</html>
